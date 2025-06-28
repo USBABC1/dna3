@@ -107,6 +107,51 @@ function AnalysisContent() {
     }
   }, [])
 
+  const nextQuestion = useCallback(() => {
+    const nextIndex = currentQuestionIndex + 1
+    
+    if (nextIndex < PERGUNTAS_DNA.length) {
+      setCurrentQuestionIndex(nextIndex)
+      setTranscript('')
+      playQuestionAudio(nextIndex)
+    } else {
+      setAnalysisStatus('finished')
+    }
+  }, [currentQuestionIndex, playQuestionAudio])
+
+  const processAudioResponse = useCallback(async (audioBlob: Blob) => {
+    try {
+      const formData = new FormData()
+      formData.append('audio', audioBlob)
+      formData.append('sessionId', sessionId!)
+      formData.append('questionIndex', currentQuestionIndex.toString())
+      formData.append('questionText', PERGUNTAS_DNA[currentQuestionIndex]?.texto || '')
+
+      const response = await fetch('/api/transcribe', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Falha na transcrição')
+      }
+
+      const data = await response.json()
+      setTranscript(data.transcript)
+
+      // Avança para a próxima pergunta após um breve delay
+      setTimeout(() => {
+        nextQuestion()
+      }, 3000) // Aumentei o tempo para 3 segundos para dar tempo de ler
+
+    } catch (error) {
+      console.error('Erro no processamento:', error)
+      setError(`Erro ao processar sua resposta: ${error instanceof Error ? error.message : 'Erro desconhecido'}. Tente novamente.`)
+      setAnalysisStatus('waiting_for_user')
+    }
+  }, [sessionId, currentQuestionIndex, nextQuestion])
+
   const startRecording = useCallback(async () => {
     if (!mediaRecorder || mediaRecorder.state !== 'inactive') return
 
@@ -145,51 +190,6 @@ function AnalysisContent() {
     
     mediaRecorder.stop()
   }, [mediaRecorder, audioChunks, processAudioResponse])
-
-  const processAudioResponse = async (audioBlob: Blob) => {
-    try {
-      const formData = new FormData()
-      formData.append('audio', audioBlob)
-      formData.append('sessionId', sessionId!)
-      formData.append('questionIndex', currentQuestionIndex.toString())
-      formData.append('questionText', PERGUNTAS_DNA[currentQuestionIndex]?.texto || '')
-
-      const response = await fetch('/api/transcribe', {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Falha na transcrição')
-      }
-
-      const data = await response.json()
-      setTranscript(data.transcript)
-
-      // Avança para a próxima pergunta após um breve delay
-      setTimeout(() => {
-        nextQuestion()
-      }, 3000) // Aumentei o tempo para 3 segundos para dar tempo de ler
-
-    } catch (error) {
-      console.error('Erro no processamento:', error)
-      setError(`Erro ao processar sua resposta: ${error instanceof Error ? error.message : 'Erro desconhecido'}. Tente novamente.`)
-      setAnalysisStatus('waiting_for_user')
-    }
-  }
-
-  const nextQuestion = () => {
-    const nextIndex = currentQuestionIndex + 1
-    
-    if (nextIndex < PERGUNTAS_DNA.length) {
-      setCurrentQuestionIndex(nextIndex)
-      setTranscript('')
-      playQuestionAudio(nextIndex)
-    } else {
-      setAnalysisStatus('finished')
-    }
-  }
 
   const startAnalysis = () => {
     setCurrentQuestionIndex(0)
