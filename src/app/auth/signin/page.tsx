@@ -1,20 +1,25 @@
 'use client'
 
 import { signIn, getSession } from 'next-auth/react'
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { LogIn, Loader } from 'lucide-react'
 
 /**
  * Página de login personalizada
  * Oferece uma experiência de login limpa e profissional com Google OAuth
  */
-export default function SignIn() {
+function SignInContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  
+  // Captura erros da URL
+  const urlError = searchParams.get('error')
+  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
 
-  // Verifica se o usuário já está logado
+  // Verifica se o usuário já está logado e configura erros da URL
   useEffect(() => {
     const checkSession = async () => {
       const session = await getSession()
@@ -23,7 +28,45 @@ export default function SignIn() {
       }
     }
     checkSession()
-  }, [router])
+    
+    // Define erro baseado na URL
+    if (urlError) {
+      switch (urlError) {
+        case 'Callback':
+          setError('Erro de configuração OAuth. Verifique: 1) NEXTAUTH_URL no Netlify (sem duplo https://), 2) URLs de redirecionamento no Google Cloud Console (/api/auth/callback/google), 3) Client ID e Secret corretos.')
+          break
+        case 'OAuthSignin':
+          setError('Erro ao iniciar o processo de login.')
+          break
+        case 'OAuthCallback':
+          setError('Erro no callback do OAuth. Verifique as URLs de redirecionamento.')
+          break
+        case 'OAuthCreateAccount':
+          setError('Erro ao criar conta.')
+          break
+        case 'EmailCreateAccount':
+          setError('Erro ao criar conta com email.')
+          break
+        case 'Signin':
+          setError('Erro no processo de login.')
+          break
+        case 'OAuthAccountNotLinked':
+          setError('Esta conta já está vinculada a outro provedor.')
+          break
+        case 'EmailSignin':
+          setError('Erro ao enviar email de login.')
+          break
+        case 'CredentialsSignin':
+          setError('Credenciais inválidas.')
+          break
+        case 'SessionRequired':
+          setError('Sessão necessária.')
+          break
+        default:
+          setError(`Erro de autenticação: ${urlError}`)
+      }
+    }
+  }, [router, urlError])
 
   const handleGoogleSignIn = async () => {
     try {
@@ -31,7 +74,7 @@ export default function SignIn() {
       setError(null)
       
       const result = await signIn('google', {
-        callbackUrl: '/dashboard',
+        callbackUrl: callbackUrl,
         redirect: false,
       })
 
@@ -144,5 +187,20 @@ export default function SignIn() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function SignIn(): JSX.Element {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-white text-center">
+          <Loader className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p>Carregando página de login...</p>
+        </div>
+      </div>
+    }>
+      <SignInContent />
+    </Suspense>
   )
 }

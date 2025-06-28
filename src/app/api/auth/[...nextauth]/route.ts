@@ -1,30 +1,20 @@
 import NextAuth from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
-import { SupabaseAdapter } from '@auth/supabase-adapter'
 import { createClient } from '@supabase/supabase-js'
 
-// Configuração do cliente Supabase para o adaptador de autenticação
-// Usa a SERVICE_ROLE_KEY para ter privilégios administrativos necessários para gerenciar usuários
-// Em desenvolvimento, usa valores placeholder se as variáveis não estiverem configuradas
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder_service_role_key'
+// Configuração do cliente Supabase para operações manuais
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-const supabase = createClient(
-  supabaseUrl,
-  supabaseServiceKey,
-  {
-    db: {
-      schema: 'next_auth',
-    },
-  }
-)
+// Cliente Supabase para operações administrativas
+const supabase = supabaseUrl && supabaseServiceKey ? createClient(supabaseUrl, supabaseServiceKey) : null
 
 const handler = NextAuth({
   // Configuração dos provedores de autenticação
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || 'placeholder_client_id',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || 'placeholder_client_secret',
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       // Solicita apenas as permissões mínimas necessárias
       authorization: {
         params: {
@@ -33,14 +23,6 @@ const handler = NextAuth({
       },
     }),
   ],
-
-  // Adaptador para integração com Supabase (apenas se as variáveis estiverem configuradas)
-  ...(supabaseUrl !== 'https://placeholder.supabase.co' && supabaseServiceKey !== 'placeholder_service_role_key' ? {
-    adapter: SupabaseAdapter({
-      url: supabaseUrl,
-      secret: supabaseServiceKey,
-    }),
-  } : {}),
 
   // Configurações de sessão e segurança
   session: {
@@ -57,10 +39,40 @@ const handler = NextAuth({
   // Callbacks para personalizar o comportamento da autenticação
   callbacks: {
     async jwt({ token, user, account }) {
-      // Inclui o ID do usuário no token JWT para uso posterior
-      if (user) {
-        token.userId = user.id
+      // Na primeira vez que o usuário faz login, sincroniza com Supabase
+      if (user && account && supabase) {
+        try {
+          // Cria ou atualiza o usuário no Supabase
+          const { data: newUser, error } = await supabase.auth.admin.createUser({
+            email: user.email!,
+            email_confirm: true,
+            user_metadata: {
+              name: user.name,
+              picture: user.image,
+              provider: account.provider,
+            },
+          })
+
+          if (newUser.user) {
+            token.userId = newUser.user.id
+          } else if (error && error.message.includes('already registered')) {
+            // Usuário já existe, busca o ID
+            const { data: existingUser } = await supabase.auth.admin.listUsers()
+            const foundUser = existingUser.users.find(u => u.email === user.email)
+            if (foundUser) {
+              token.userId = foundUser.id
+            }
+          }
+        } catch (error) {
+          console.error('Erro ao sincronizar usuário com Supabase:', error)
+          // Usa um ID baseado no email como fallback
+          token.userId = user.email
+        }
+      } else {
+        // Fallback se não houver Supabase configurado
+        token.userId = user?.email || user?.id
       }
+
       return token
     },
 
@@ -79,10 +91,10 @@ const handler = NextAuth({
     },
   },
 
-  // Páginas customizadas (opcional)
+  // Páginas customizadas
   pages: {
     signIn: '/auth/signin',
-    error: '/auth/error',
+    error: '/auth/signin', // Redireciona erros para a página de login
   },
 
   // Configurações de debug (apenas em desenvolvimento)
