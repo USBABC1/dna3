@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 
 /**
@@ -11,35 +12,28 @@ import { supabase } from '@/lib/supabase'
 export async function POST(request: NextRequest) {
   try {
     // Verifica se o usuário está autenticado
-    const session = await getServerSession()
+    const session = await getServerSession(authOptions)
     
-    if (!session?.user?.email) {
+    console.log('Session debug:', {
+      hasSession: !!session,
+      hasUser: !!session?.user,
+      hasUserId: !!session?.user?.id,
+      userEmail: session?.user?.email,
+      userId: session?.user?.id
+    })
+    
+    if (!session?.user?.id) {
       return NextResponse.json(
-        { error: 'Usuário não autenticado' },
+        { error: 'Usuário não autenticado', debug: { hasSession: !!session, hasUser: !!session?.user } },
         { status: 401 }
       )
     }
 
-    // Busca o usuário no Supabase pelo email
-    const { data: userData, error: userError } = await supabase
-      .from('auth.users')
-      .select('id')
-      .eq('email', session.user.email)
-      .single()
-
-    if (userError || !userData) {
-      console.error('Erro ao buscar usuário:', userError)
-      return NextResponse.json(
-        { error: 'Usuário não encontrado no sistema' },
-        { status: 404 }
-      )
-    }
-
-    // Cria uma nova sessão de análise
+    // Cria uma nova sessão de análise usando o ID do usuário da sessão
     const { data: sessionData, error: sessionError } = await supabase
       .from('analysis_sessions')
       .insert({
-        user_id: userData.id,
+        user_id: session.user.id,
       })
       .select()
       .single()
@@ -69,30 +63,16 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // Verifica se o usuário está autenticado
-    const session = await getServerSession()
+    const session = await getServerSession(authOptions)
     
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Usuário não autenticado' },
         { status: 401 }
       )
     }
 
-    // Busca o usuário no Supabase pelo email
-    const { data: userData, error: userError } = await supabase
-      .from('auth.users')
-      .select('id')
-      .eq('email', session.user.email)
-      .single()
-
-    if (userError || !userData) {
-      return NextResponse.json(
-        { error: 'Usuário não encontrado no sistema' },
-        { status: 404 }
-      )
-    }
-
-    // Lista as sessões do usuário
+    // Lista as sessões do usuário usando o ID da sessão
     const { data: sessions, error: sessionsError } = await supabase
       .from('analysis_sessions')
       .select(`
@@ -107,7 +87,7 @@ export async function GET(request: NextRequest) {
           created_at
         )
       `)
-      .eq('user_id', userData.id)
+      .eq('user_id', session.user.id)
       .order('created_at', { ascending: false })
 
     if (sessionsError) {

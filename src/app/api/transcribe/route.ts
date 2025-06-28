@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { supabase } from '@/lib/supabase'
 import { GoogleDriveService } from '@/services/googleDriveService'
+import { authOptions } from '@/lib/auth'
 
 /**
  * Rota de API para transcrever áudio e persistir dados
@@ -15,9 +16,9 @@ import { GoogleDriveService } from '@/services/googleDriveService'
 export async function POST(request: NextRequest) {
   try {
     // === VALIDAÇÃO DE AUTENTICAÇÃO ===
-    const session = await getServerSession()
+    const session = await getServerSession(authOptions)
     
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Usuário não autenticado' },
         { status: 401 }
@@ -52,9 +53,9 @@ export async function POST(request: NextRequest) {
     // Verifica se a sessão pertence ao usuário autenticado
     const { data: sessionData, error: sessionError } = await supabase
       .from('analysis_sessions')
-      .select('user_id, auth.users!inner(email)')
+      .select('user_id')
       .eq('id', sessionId)
-      .eq('auth.users.email', session.user.email)
+      .eq('user_id', session.user.id)
       .single()
 
     if (sessionError || !sessionData) {
