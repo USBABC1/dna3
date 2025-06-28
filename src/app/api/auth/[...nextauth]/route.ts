@@ -66,7 +66,7 @@ const handler = NextAuth({
 
     async session({ session, token }) {
       // Inclui o ID do usuário na sessão para acesso no frontend
-      if (token.userId) {
+      if (token.userId && session.user) {
         session.user.id = token.userId as string
       }
       return session
