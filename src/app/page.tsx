@@ -1,11 +1,9 @@
-'use client';
+'use client'
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, Square, Volume2, Loader } from 'lucide-react';
-import { PERGUNTAS_DNA, criarPerfilInicial } from '../lib/config';
-import { analisarFragmento, gerarSinteseFinal } from '../lib/analysisEngine';
-import { initAudio, playAudioFromUrl, startRecording, stopRecording } from '../services/webAudioService';
-import type { ExpertProfile, SessionStatus, Pergunta } from '../lib/types';
+import { useSession, signIn } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
+import { LogIn, Mic, Play } from 'lucide-react'
 
 // Componente para partículas flutuantes
 const FloatingParticles = () => {
@@ -153,150 +151,66 @@ const Footer = () => (
   </footer>
 );
 
-// Componente principal da interface
-export default function DnaInterface() {
-  const [status, setStatus] = useState<SessionStatus>('idle');
-  const [perguntaAtual, setPerguntaAtual] = useState<Pergunta | null>(null);
-  const [perfil, setPerfil] = useState<ExpertProfile>(criarPerfilInicial());
-  const [error, setError] = useState<string | null>(null);
-  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+/**
+ * Página inicial da plataforma DNA
+ * Apresenta a plataforma e oferece opções de login ou acesso direto
+ */
+export default function HomePage() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
 
-  const perguntaIndex = useRef(0);
-
+  // Redireciona usuários autenticados para o dashboard
   useEffect(() => {
-    initAudio().catch(err => {
-      console.error("Erro ao inicializar áudio:", err);
-      setError("Não foi possível acessar o microfone. Verifique as permissões do navegador.");
-    });
-  }, []);
+    if (session) {
+      router.push('/dashboard')
+    }
+  }, [session, router])
 
-  const iniciarSessao = useCallback(() => {
-    perguntaIndex.current = 0;
-    setPerfil(criarPerfilInicial());
-    setError(null);
-    fazerProximaPergunta();
-  }, []);
-  
-  const fazerProximaPergunta = useCallback(async () => {
-    if (perguntaIndex.current < PERGUNTAS_DNA.length) {
-      const pergunta = PERGUNTAS_DNA[perguntaIndex.current];
-      setPerguntaAtual(pergunta);
-      setStatus('listening');
-      setIsAudioPlaying(true);
+  const handleLogin = () => {
+    signIn('google', { callbackUrl: '/dashboard' })
+  }
+
+  const handleGuestAccess = () => {
+    // Para acesso como convidado, redireciona para a versão original
+    router.push('/guest-analysis')
+  }
+
+  return (
+    <div className="main-container">
+      <FloatingParticles />
+      <DottedLines />
+      <Logo />
       
-      try {
-        await playAudioFromUrl(pergunta.audioUrl, () => {
-          setStatus('waiting_for_user');
-          setIsAudioPlaying(false);
-        });
-        perguntaIndex.current++;
-      } catch (err) {
-        console.error("Erro ao reproduzir áudio:", err);
-        setError("Erro ao reproduzir a pergunta. Tentando novamente...");
-        setTimeout(fazerProximaPergunta, 2000);
-      }
-    } else {
-      setStatus('finished');
-    }
-  }, []);
+      <div className="content-area">
+        <div className="content-flex">
+          <div style={{ flex: 1 }}>
+            <h1 className="question-text">
+              DNA<br />
+              Deep Narrative Analysis<br />
+              <span className="question-highlight">UP</span> LANÇAMENTOS
+            </h1>
+            
+            <p style={{
+              color: 'var(--text-secondary)',
+              fontSize: '1.1rem',
+              lineHeight: '1.6',
+              marginBottom: '2rem',
+              maxWidth: '500px'
+            }}>
+              Plataforma avançada de análise narrativa que utiliza inteligência artificial 
+              para compreender e mapear padrões profundos em suas respostas.
+            </p>
 
-  const handleStartRecording = useCallback(async () => {
-    try {
-      await startRecording();
-      setStatus('recording');
-    } catch (err) {
-      console.error("Erro ao iniciar gravação:", err);
-      setError("Não foi possível iniciar a gravação. Verifique as permissões do microfone.");
-    }
-  }, []);
-  
-  const handleStopRecording = useCallback(async () => {
-    setStatus('processing');
-    try {
-      const audioBlob = await stopRecording();
-      const transcricao = await transcreverAudio(audioBlob);
-      if (perguntaAtual) {
-        const perfilAtualizado = analisarFragmento(transcricao, perfil, perguntaAtual);
-        setPerfil(perfilAtualizado);
-      }
-      fazerProximaPergunta();
-    } catch (err) {
-      console.error("Erro ao processar gravação:", err);
-      setError("Problema ao processar sua resposta. Continuando para a próxima pergunta...");
-      setTimeout(fazerProximaPergunta, 2000);
-    }
-  }, [perguntaAtual, perfil, fazerProximaPergunta]);
-
-  const transcreverAudio = async (audioBlob: Blob): Promise<string> => {
-    const response = await fetch('/api/transcribe', { method: 'POST', body: audioBlob });
-    if (!response.ok) throw new Error("Falha na transcrição");
-    const data = await response.json();
-    return data.transcript;
-  };
-
-  const getStatusConfig = () => {
-    switch (status) {
-      case 'listening':
-        return {
-          text: 'Reproduzindo pergunta...',
-          dotClass: 'listening'
-        };
-      case 'waiting_for_user':
-        return {
-          text: 'Clique no microfone para responder',
-          dotClass: 'waiting'
-        };
-      case 'recording':
-        return {
-          text: 'Gravando sua resposta...',
-          dotClass: 'recording'
-        };
-      case 'processing':
-        return {
-          text: 'Processando resposta...',
-          dotClass: 'processing'
-        };
-      default:
-        return {
-          text: 'Pronto para começar',
-          dotClass: ''
-        };
-    }
-  };
-
-  const statusConfig = getStatusConfig();
-
-  const formatQuestionText = (text: string) => {
-    // Destaca palavras-chave importantes
-    const keywords = ['você', 'sua', 'seu', 'quem', 'qual', 'como', 'onde', 'quando', 'por que'];
-    let formattedText = text;
-    
-    keywords.forEach(keyword => {
-      const regex = new RegExp(`\\b${keyword}\\b`, 'gi');
-      formattedText = formattedText.replace(regex, `<span class="question-highlight">${keyword}</span>`);
-    });
-    
-    return formattedText;
-  };
-
-  if (status === 'idle') {
-    return (
-      <div className="main-container">
-        <FloatingParticles />
-        <DottedLines />
-        <Logo />
-        
-        <div className="content-area">
-          <div className="content-flex">
-            <div style={{ flex: 1 }}>
-              <h1 className="question-text">
-                DNA<br />
-                Deep Narrative Analysis<br />
-                <span className="question-highlight">UP</span> LANÇAMENTOS
-              </h1>
-              
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '1rem',
+              maxWidth: '400px'
+            }}>
+              {/* Botão de login principal */}
               <button
-                onClick={iniciarSessao}
+                onClick={handleLogin}
+                disabled={status === 'loading'}
                 style={{
                   background: 'linear-gradient(135deg, var(--primary-orange), var(--secondary-orange))',
                   color: 'white',
@@ -306,7 +220,11 @@ export default function DnaInterface() {
                   fontSize: '1.1rem',
                   fontWeight: '600',
                   cursor: 'pointer',
-                  transition: 'all 0.3s ease'
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem'
                 }}
                 onMouseOver={(e) => {
                   e.currentTarget.style.transform = 'translateY(-2px)';
@@ -317,114 +235,73 @@ export default function DnaInterface() {
                   e.currentTarget.style.boxShadow = 'none';
                 }}
               >
-                Iniciar Análise DNA
+                <LogIn className="w-5 h-5" />
+                {status === 'loading' ? 'Carregando...' : 'Login com Google'}
+              </button>
+
+              {/* Botão de acesso como convidado */}
+              <button
+                onClick={handleGuestAccess}
+                style={{
+                  background: 'transparent',
+                  color: 'var(--text-secondary)',
+                  border: '2px solid rgba(255, 255, 255, 0.2)',
+                  padding: '1rem 2rem',
+                  borderRadius: '12px',
+                  fontSize: '1rem',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.4)';
+                  e.currentTarget.style.color = 'white';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                  e.currentTarget.style.color = 'var(--text-secondary)';
+                }}
+              >
+                <Play className="w-5 h-5" />
+                Experimentar sem Login
               </button>
             </div>
-            
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center',
-              gap: '2rem'
-            }}>
-              <div className="mic-button" style={{ cursor: 'default' }}>
-                <Mic className="mic-icon" />
-              </div>
-              <AudioVisualizer isActive={false} />
-            </div>
-          </div>
-        </div>
-        
-        <Footer />
-      </div>
-    );
-  }
 
-  if (status === 'finished') {
-    return (
-      <div className="main-container">
-        <FloatingParticles />
-        <Logo />
-        
-        <div className="content-area">
-          <div style={{ 
-            maxWidth: '800px', 
-            width: '100%',
-            textAlign: 'center'
-          }}>
-            <h1 className="question-text" style={{ textAlign: 'center', marginBottom: '2rem' }}>
-              Análise <span className="question-highlight">Concluída</span>
-            </h1>
-            
+            {/* Informações sobre benefícios do login */}
             <div style={{
+              marginTop: '2rem',
+              padding: '1.5rem',
               background: 'rgba(255, 255, 255, 0.05)',
-              borderRadius: '16px',
-              padding: '2rem',
-              marginBottom: '2rem',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255, 255, 255, 0.1)'
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              maxWidth: '500px'
             }}>
-              <pre style={{
-                whiteSpace: 'pre-wrap',
-                fontSize: '0.9rem',
-                lineHeight: '1.6',
-                color: 'var(--text-secondary)',
-                maxHeight: '400px',
-                overflowY: 'auto'
-              }}>
-                {gerarSinteseFinal(perfil)}
-              </pre>
-            </div>
-            
-            <button
-              onClick={iniciarSessao}
-              style={{
-                background: 'linear-gradient(135deg, var(--primary-orange), var(--secondary-orange))',
+              <h3 style={{
                 color: 'white',
-                border: 'none',
-                padding: '1rem 2rem',
-                borderRadius: '12px',
-                fontSize: '1.1rem',
+                fontSize: '1rem',
                 fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease'
-              }}
-            >
-              Nova Análise
-            </button>
-          </div>
-        </div>
-        
-        <Footer />
-      </div>
-    );
-  }
-
-  return (
-    <div className="main-container">
-      <FloatingParticles />
-      <DottedLines />
-      <Logo />
-      
-      <ProgressIndicator 
-        current={perguntaIndex.current} 
-        total={PERGUNTAS_DNA.length} 
-      />
-      
-      <div className="content-area">
-        <div className="content-flex">
-          <div style={{ flex: 1 }}>
-            <div className="status-indicator">
-              <div className={`status-dot ${statusConfig.dotClass}`} />
-              <span className="status-text">{statusConfig.text}</span>
+                marginBottom: '0.5rem'
+              }}>
+                Benefícios do Login:
+              </h3>
+              <ul style={{
+                color: 'var(--text-secondary)',
+                fontSize: '0.9rem',
+                lineHeight: '1.5',
+                listStyle: 'none',
+                padding: 0,
+                margin: 0
+              }}>
+                <li>✓ Histórico completo de suas análises</li>
+                <li>✓ Dados salvos com segurança</li>
+                <li>✓ Acesso aos arquivos de áudio</li>
+                <li>✓ Relatórios detalhados</li>
+              </ul>
             </div>
-            
-            <h1 
-              className="question-text"
-              dangerouslySetInnerHTML={{ 
-                __html: perguntaAtual ? formatQuestionText(perguntaAtual.texto) : '' 
-              }}
-            />
           </div>
           
           <div style={{ 
@@ -433,44 +310,15 @@ export default function DnaInterface() {
             alignItems: 'center',
             gap: '2rem'
           }}>
-            <button
-              className={`mic-button ${status === 'recording' ? 'recording' : ''} ${
-                status === 'listening' || status === 'processing' ? 'disabled' : ''
-              }`}
-              onClick={status === 'recording' ? handleStopRecording : handleStartRecording}
-              disabled={status === 'listening' || status === 'processing'}
-            >
-              {status === 'recording' ? (
-                <Square className="mic-icon" />
-              ) : status === 'processing' ? (
-                <Loader className="mic-icon" style={{ animation: 'spin 1s linear infinite' }} />
-              ) : (
-                <Mic className="mic-icon" />
-              )}
-            </button>
-            
-            <AudioVisualizer isActive={isAudioPlaying || status === 'recording'} />
+            <div className="mic-button" style={{ cursor: 'default' }}>
+              <Mic className="mic-icon" />
+            </div>
+            <AudioVisualizer isActive={false} />
           </div>
         </div>
       </div>
       
       <Footer />
-      
-      {error && (
-        <div style={{
-          position: 'fixed',
-          bottom: '2rem',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          background: 'rgba(255, 68, 68, 0.9)',
-          color: 'white',
-          padding: '1rem 2rem',
-          borderRadius: '12px',
-          fontSize: '0.9rem'
-        }}>
-          {error}
-        </div>
-      )}
     </div>
-  );
+  )
 }
