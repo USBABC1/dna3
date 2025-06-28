@@ -39,46 +39,32 @@ export const authOptions: NextAuthOptions = {
         // Sincroniza com Supabase se configurado
         if (supabase && user.email) {
           try {
-            // Verifica se o usuário já existe
-            const { data: existingUser, error: fetchError } = await supabase
-              .from('auth.users')
-              .select('id')
-              .eq('email', user.email)
-              .single()
+            // Tenta criar o usuário no Supabase Auth
+            const { data: newUser, error } = await supabase.auth.admin.createUser({
+              email: user.email,
+              email_confirm: true,
+              user_metadata: {
+                name: user.name,
+                picture: user.image,
+                provider: account.provider,
+              },
+            })
 
-            if (fetchError && fetchError.code !== 'PGRST116') {
-              // PGRST116 = não encontrado, outros erros são problemáticos
-              throw fetchError
-            }
-
-            if (existingUser) {
-              // Usuário existe, usa o ID existente
-              token.userId = existingUser.id
-              console.log('Usuário existente encontrado:', existingUser.id)
-            } else {
-              // Usuário não existe, cria um novo
-              const { data: newUser, error: insertError } = await supabase
-                .from('auth.users')
-                .insert({
-                  email: user.email,
-                  raw_user_meta_data: {
-                    name: user.name,
-                    picture: user.image,
-                    provider: account.provider,
-                  },
-                  email_confirmed_at: new Date().toISOString(),
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                })
-                .select('id')
-                .single()
-
-              if (insertError) {
-                throw insertError
+            if (newUser.user) {
+              token.userId = newUser.user.id
+              console.log('Usuário criado/encontrado no Supabase:', newUser.user.id)
+            } else if (error && error.message.includes('already registered')) {
+              // Usuário já existe, busca o ID
+              const { data: existingUsers } = await supabase.auth.admin.listUsers()
+              const foundUser = existingUsers.users.find(u => u.email === user.email)
+              if (foundUser) {
+                token.userId = foundUser.id
+                console.log('Usuário existente encontrado:', foundUser.id)
+              } else {
+                throw new Error('Usuário existe mas não foi encontrado')
               }
-
-              token.userId = newUser.id
-              console.log('Novo usuário criado:', newUser.id)
+            } else {
+              throw error
             }
           } catch (error) {
             console.error('Erro ao sincronizar usuário com Supabase:', error)
@@ -112,7 +98,6 @@ export const authOptions: NextAuthOptions = {
   // Páginas customizadas
   pages: {
     signIn: '/auth/signin',
-    error: '/auth/signin', // Redireciona erros para a página de login
   },
 
   // Configurações de debug (apenas em desenvolvimento)
