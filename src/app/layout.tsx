@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import { cn } from "@/lib/utils";
+import { Providers } from '@/components/providers';
 import './globals.css';
 
 const fontSans = Inter({
@@ -77,9 +78,11 @@ export default function RootLayout({
         fontSans.variable,
         fontMono.variable
       )}>
-        <div className="relative">
-          {children}
-        </div>
+        <Providers>
+          <div className="relative">
+            {children}
+          </div>
+        </Providers>
       </body>
     </html>
   );
