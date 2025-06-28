@@ -2,17 +2,16 @@
 
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, Suspense } from 'react'
 import { Mic, Square, Volume2, Loader, ArrowLeft, Home } from 'lucide-react'
 import { PERGUNTAS_DNA } from '@/lib/config'
 
 type SessionStatus = 'idle' | 'listening' | 'waiting_for_user' | 'recording' | 'processing' | 'finished'
 
 /**
- * Página de análise interativa
- * Conduz o usuário através das perguntas da análise DNA
+ * Componente interno que usa useSearchParams
  */
-export default function AnalysisPage() {
+function AnalysisContent() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -376,5 +375,24 @@ export default function AnalysisPage() {
       {/* Hidden audio element */}
       <audio ref={audioRef} preload="metadata" />
     </div>
+  )
+}
+
+/**
+ * Página de análise interativa
+ * Conduz o usuário através das perguntas da análise DNA
+ */
+export default function AnalysisPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-white text-center">
+          <Loader className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p>Carregando análise...</p>
+        </div>
+      </div>
+    }>
+      <AnalysisContent />
+    </Suspense>
   )
 }
