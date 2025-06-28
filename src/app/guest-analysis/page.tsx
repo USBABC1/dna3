@@ -549,6 +549,35 @@ export default function GuestAnalysisPage() {
               )}
             </button>
             
+            {/* Botão Pular Pergunta */}
+            {(status === 'waiting_for_user' || error) && (
+              <button
+                onClick={fazerProximaPergunta}
+                style={{
+                  background: 'transparent',
+                  color: 'var(--text-secondary)',
+                  border: '2px solid rgba(255, 255, 255, 0.2)',
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '12px',
+                  fontSize: '0.9rem',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  backdropFilter: 'blur(10px)'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
+                  e.currentTarget.style.color = 'white'
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = 'transparent'
+                  e.currentTarget.style.color = 'var(--text-secondary)'
+                }}
+              >
+                Pular pergunta
+              </button>
+            )}
+            
             <AudioVisualizer isActive={isAudioPlaying || status === 'recording'} />
           </div>
         </div>
