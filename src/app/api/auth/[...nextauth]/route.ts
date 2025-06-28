@@ -66,11 +66,11 @@ const handler = NextAuth({
         } catch (error) {
           console.error('Erro ao sincronizar usuário com Supabase:', error)
           // Usa um ID baseado no email como fallback
-          token.userId = user.email
+          token.userId = user.email || user.id || 'unknown'
         }
       } else {
         // Fallback se não houver Supabase configurado
-        token.userId = user?.email || user?.id
+        token.userId = user?.email || user?.id || 'unknown'
       }
 
       return token

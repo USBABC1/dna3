@@ -382,7 +382,7 @@ function AnalysisContent() {
  * Página de análise interativa
  * Conduz o usuário através das perguntas da análise DNA
  */
-export default function AnalysisPage() {
+export default function AnalysisPage(): JSX.Element {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
