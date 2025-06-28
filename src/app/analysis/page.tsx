@@ -49,8 +49,17 @@ function AnalysisContent() {
 
   const initializeAudio = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const recorder = new MediaRecorder(stream)
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 44100
+        } 
+      })
+      
+      const recorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      })
       
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -58,21 +67,21 @@ function AnalysisContent() {
         }
       }
 
-      recorder.onstop = () => {
-        // O processamento será feito no handleStopRecording
-      }
-
       setMediaRecorder(recorder)
       setAnalysisStatus('waiting_for_user')
     } catch (error) {
       console.error('Erro ao acessar microfone:', error)
-      setError('Não foi possível acessar o microfone. Verifique as permissões.')
+      setError('Não foi possível acessar o microfone. Verifique as permissões do navegador.')
     }
   }
 
   const playQuestionAudio = useCallback(async (questionIndex: number) => {
     const question = PERGUNTAS_DNA[questionIndex]
-    if (!question?.audioUrl) return
+    if (!question?.audioUrl) {
+      // Se não há áudio, apenas mostra a pergunta
+      setAnalysisStatus('waiting_for_user')
+      return
+    }
 
     try {
       setIsAudioPlaying(true)
@@ -84,11 +93,15 @@ function AnalysisContent() {
           setIsAudioPlaying(false)
           setAnalysisStatus('waiting_for_user')
         }
+        audioRef.current.onerror = () => {
+          console.log('Erro no áudio, continuando sem reprodução')
+          setIsAudioPlaying(false)
+          setAnalysisStatus('waiting_for_user')
+        }
         await audioRef.current.play()
       }
     } catch (error) {
       console.error('Erro ao reproduzir áudio:', error)
-      setError('Erro ao reproduzir a pergunta')
       setIsAudioPlaying(false)
       setAnalysisStatus('waiting_for_user')
     }
@@ -109,24 +122,29 @@ function AnalysisContent() {
     }
   }, [mediaRecorder])
 
-  const stopRecording = useCallback(async () => {
+  const stopRecording = useCallback(() => {
     if (!mediaRecorder || mediaRecorder.state !== 'recording') return
 
     setAnalysisStatus('processing')
-    mediaRecorder.stop()
-
-    // Aguarda os chunks serem coletados
-    setTimeout(async () => {
+    
+    // Configura o handler para quando a gravação parar
+    mediaRecorder.onstop = async () => {
       try {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' })
+        if (audioChunks.length === 0) {
+          throw new Error('Nenhum áudio foi gravado')
+        }
+        
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' })
         await processAudioResponse(audioBlob)
       } catch (error) {
         console.error('Erro ao processar gravação:', error)
-        setError('Erro ao processar sua resposta')
+        setError('Erro ao processar sua resposta. Tente gravar novamente.')
         setAnalysisStatus('waiting_for_user')
       }
-    }, 100)
-  }, [mediaRecorder, audioChunks, currentQuestionIndex, sessionId])
+    }
+    
+    mediaRecorder.stop()
+  }, [mediaRecorder, audioChunks, processAudioResponse])
 
   const processAudioResponse = async (audioBlob: Blob) => {
     try {
@@ -142,7 +160,8 @@ function AnalysisContent() {
       })
 
       if (!response.ok) {
-        throw new Error('Falha na transcrição')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Falha na transcrição')
       }
 
       const data = await response.json()
@@ -151,11 +170,11 @@ function AnalysisContent() {
       // Avança para a próxima pergunta após um breve delay
       setTimeout(() => {
         nextQuestion()
-      }, 2000)
+      }, 3000) // Aumentei o tempo para 3 segundos para dar tempo de ler
 
     } catch (error) {
       console.error('Erro no processamento:', error)
-      setError('Erro ao processar sua resposta. Tente novamente.')
+      setError(`Erro ao processar sua resposta: ${error instanceof Error ? error.message : 'Erro desconhecido'}. Tente novamente.`)
       setAnalysisStatus('waiting_for_user')
     }
   }
@@ -329,7 +348,7 @@ function AnalysisContent() {
               </div>
 
               {/* Recording controls */}
-              <div className="flex justify-center">
+              <div className="flex flex-col items-center gap-4">
                 <button
                   onClick={analysisStatus === 'recording' ? stopRecording : startRecording}
                   disabled={analysisStatus === 'listening' || analysisStatus === 'processing'}
@@ -347,6 +366,16 @@ function AnalysisContent() {
                     <Mic className="w-8 h-8 text-white" />
                   )}
                 </button>
+                
+                {/* Botão para pular pergunta */}
+                {analysisStatus === 'waiting_for_user' && (
+                  <button
+                    onClick={nextQuestion}
+                    className="text-white/60 hover:text-white text-sm underline transition-colors"
+                  >
+                    Pular pergunta
+                  </button>
+                )}
               </div>
             </div>
 

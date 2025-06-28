@@ -176,149 +176,108 @@ export default function HomePage() {
   }
 
   return (
-    <div className="main-container">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
       <FloatingParticles />
       <DottedLines />
-      <Logo />
       
-      <div className="content-area">
-        <div className="content-flex">
-          <div style={{ flex: 1 }}>
-            <h1 className="question-text">
-              DNA<br />
-              Deep Narrative Analysis<br />
-              <span className="question-highlight">UP</span> LANÇAMENTOS
-            </h1>
-            
-            <p style={{
-              color: 'var(--text-secondary)',
-              fontSize: '1.1rem',
-              lineHeight: '1.6',
-              marginBottom: '2rem',
-              maxWidth: '500px'
-            }}>
-              Plataforma avançada de análise narrativa que utiliza inteligência artificial 
-              para compreender e mapear padrões profundos em suas respostas.
-            </p>
+      {/* Header com logo */}
+      <header className="relative z-20 p-6">
+        <div className="flex items-center gap-3">
+          <img src="/logo.png" alt="DNA" className="w-12 h-12 rounded-full" />
+          <div>
+            <h1 className="text-2xl font-bold text-white">DNA</h1>
+            <p className="text-white/60 text-sm">Deep Narrative Analysis</p>
+          </div>
+        </div>
+      </header>
+      
+      {/* Conteúdo principal */}
+      <main className="relative z-10 flex-1 flex items-center justify-center px-6 py-12">
+        <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          {/* Lado esquerdo - Conteúdo */}
+          <div className="space-y-8">
+            <div>
+              <h2 className="text-5xl lg:text-6xl font-bold text-white leading-tight mb-6">
+                DNA<br />
+                Deep Narrative Analysis<br />
+                <span className="bg-gradient-to-r from-orange-500 to-orange-600 text-transparent bg-clip-text">
+                  UP LANÇAMENTOS
+                </span>
+              </h2>
+              
+              <p className="text-white/80 text-lg leading-relaxed max-w-lg">
+                Plataforma avançada de análise narrativa que utiliza inteligência artificial 
+                para compreender e mapear padrões profundos em suas respostas.
+              </p>
+            </div>
 
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              gap: '1rem',
-              maxWidth: '400px'
-            }}>
-              {/* Botão de login principal */}
+            {/* Botões de ação */}
+            <div className="space-y-4 max-w-md">
               <button
                 onClick={handleLogin}
                 disabled={status === 'loading'}
-                style={{
-                  background: 'linear-gradient(135deg, var(--primary-orange), var(--secondary-orange))',
-                  color: 'white',
-                  border: 'none',
-                  padding: '1rem 2rem',
-                  borderRadius: '12px',
-                  fontSize: '1.1rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.5rem'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 10px 25px rgba(255, 107, 53, 0.3)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
+                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 transform hover:scale-105 hover:shadow-lg hover:shadow-orange-500/25"
               >
                 <LogIn className="w-5 h-5" />
                 {status === 'loading' ? 'Carregando...' : 'Login com Google'}
               </button>
 
-              {/* Botão de acesso como convidado */}
               <button
                 onClick={handleGuestAccess}
-                style={{
-                  background: 'transparent',
-                  color: 'var(--text-secondary)',
-                  border: '2px solid rgba(255, 255, 255, 0.2)',
-                  padding: '1rem 2rem',
-                  borderRadius: '12px',
-                  fontSize: '1rem',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.5rem'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.4)';
-                  e.currentTarget.style.color = 'white';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-                  e.currentTarget.style.color = 'var(--text-secondary)';
-                }}
+                className="w-full bg-transparent border-2 border-white/20 hover:border-white/40 text-white/80 hover:text-white font-medium py-4 px-6 rounded-xl transition-all duration-300 flex items-center justify-center gap-3"
               >
                 <Play className="w-5 h-5" />
                 Experimentar sem Login
               </button>
             </div>
 
-            {/* Informações sobre benefícios do login */}
-            <div style={{
-              marginTop: '2rem',
-              padding: '1.5rem',
-              background: 'rgba(255, 255, 255, 0.05)',
-              borderRadius: '12px',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              maxWidth: '500px'
-            }}>
-              <h3 style={{
-                color: 'white',
-                fontSize: '1rem',
-                fontWeight: '600',
-                marginBottom: '0.5rem'
-              }}>
+            {/* Benefícios do login */}
+            <div className="bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-white/10 max-w-md">
+              <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
                 Benefícios do Login:
               </h3>
-              <ul style={{
-                color: 'var(--text-secondary)',
-                fontSize: '0.9rem',
-                lineHeight: '1.5',
-                listStyle: 'none',
-                padding: 0,
-                margin: 0
-              }}>
-                <li>✓ Histórico completo de suas análises</li>
-                <li>✓ Dados salvos com segurança</li>
-                <li>✓ Acesso aos arquivos de áudio</li>
-                <li>✓ Relatórios detalhados</li>
+              <ul className="space-y-2 text-white/70 text-sm">
+                <li className="flex items-center gap-2">
+                  <span className="text-green-400">✓</span>
+                  Histórico completo de suas análises
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-green-400">✓</span>
+                  Dados salvos com segurança
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-green-400">✓</span>
+                  Acesso aos arquivos de áudio
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-green-400">✓</span>
+                  Relatórios detalhados
+                </li>
               </ul>
             </div>
           </div>
           
-          <div style={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            alignItems: 'center',
-            gap: '2rem'
-          }}>
-            <div className="mic-button" style={{ cursor: 'default' }}>
-              <Mic className="mic-icon" />
+          {/* Lado direito - Visualização */}
+          <div className="flex flex-col items-center justify-center space-y-8">
+            <div className="relative">
+              <div className="w-32 h-32 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center shadow-2xl shadow-orange-500/30">
+                <Mic className="w-16 h-16 text-white" />
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full animate-ping opacity-20"></div>
             </div>
             <AudioVisualizer isActive={false} />
           </div>
         </div>
-      </div>
+      </main>
       
-      <Footer />
+      {/* Footer */}
+      <footer className="relative z-20 text-center py-6 border-t border-white/10 bg-black/20 backdrop-blur-lg">
+        <div className="text-white/60 text-sm">
+          <p className="font-semibold text-orange-400 mb-1">DNA</p>
+          <p>Deep Narrative Analysis - UP LANÇAMENTOS 2025</p>
+        </div>
+      </footer>
     </div>
   )
 }
